@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge;chrome=1">
+    <title>LaunchDarkly tutorial</title>
+    <script src="https://unpkg.com/launchdarkly-js-client-sdk@3"></script>
+
+      <style>
+    /* Center the <div> element */
+    .container {
+      margin: 0 auto;
+      max-width: 800px; /* Set a max width to limit the width of the content */
+    }
+    /* Style the header */
+    h1 {
+      font-size: 2rem;
+      text-align: center;
+    }
+    /* Style the image */
+    img {
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+    }
+    /* Style the unordered list */
+    ol {
+      padding: 0;
+      margin: 10px;
+      text-align: center;
+    }
+    li {
+      font-size: 1.5rem;
+      margin: 0.5rem 0;
+    }
+
+    .debug {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      background-color: black;
+      color: white;
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    .button {
+      display: block;
+      padding: 20px;
+      background-color: black;
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      width: 80px;
+      height: 25px;
+      margin: 0 auto;
+    }
+
+    #single {
+      display: block;
+    }
+
+    #two-column {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      flex-direction: row;
+    }
+
+    #two-column img {
+      width: 49%;
+      padding: 2px;
+      height: auto;
+      display: block;
+    }
+  </style>
+
+  </head>
+  <body>
+    <script>
+    function main()
+    {
+      // Set clientSideID to your LaunchDarkly client-side ID
+      const clientSideID = '6444c2043d03ad12bc72e0e1';
+
+      // Set flagKey to the feature flag key you want to evaluate
+      const flagKey = 'debug-flag';
+
+      // Set up the context properties. This context should appear on your
+      // LaunchDarkly contexts dashboard soon after you run the demo.
+      const context = {
+        "kind": "user",
+        "key": "user-key-123abc",
+        "name": "Doogie Howser",
+        "email": "doogie@howsermd.com",
+        "jobFunction": "doctor",
+        "platform": navigator.platform,
+        "language": navigator.language,
+        "viewportWidth": window.innerWidth,
+        "viewportHeight": window.innerHeight
+      };
+
+      var div = document.createElement('div');
+      div.classList.add("debug")
+      document.body.appendChild(div);
+      div.appendChild(document.createTextNode('Initializing...'));
+
+
+      if (clientSideID === '') {
+        div.replaceChild(document.createTextNode('Please edit index.html to set clientSideID to your LaunchDarkly client-side ID first'), div.firstChild);
+        return;
+      }
+
+      const ldclient = LDClient.initialize(clientSideID, context);
+
+      function render() {
+        const flagValue = ldclient.variation(flagKey, false);
+        const label = 'Feature flag ' + flagKey + ' is ' + flagValue + ' for this context';
+        div.replaceChild(document.createTextNode(label), div.firstChild);
+        
+        if (document.querySelector('.container')) {
+          // Code to run if the container element exists
+          console.log('Container element found!');
+
+          // Header Text Experiment
+          let headerText = ldclient.variation("header-text-experiment", "Experimentation Station")
+          document.querySelector('#header').innerHTML = headerText
+
+          // Button Color Experiment
+          let buttonColor = ldclient.variation("button-color-experiment", "black")
+          document.querySelector(".button").style.backgroundColor = buttonColor
+
+          // List Order Experiment
+          let listOrder = ldclient.variation("list-order-experiment", false)
+          const ol = document.querySelector('ol');
+          listOrder ? ol.setAttribute('reversed', '') : ol.removeAttribute('reversed');
+          
+        } else {
+        // Code to run if the container element does not exist
+          console.log('Container element not found!');
+        }
+      }
+
+      ldclient.on('initialized', () => {
+        div.appendChild(document.createTextNode('SDK successfully initialized!'), div.firstChild);
+
+        // Track events
+        // Button Clicks
+        window.trackButtonClick = function () {
+          ldclient.track('button-click')
+          console.log('tracked button click')
+        }
+
+        // Track Browser Render Time
+        function getRenderTime() {
+          const paintTimings = performance.getEntriesByType('paint');
+          const renderTime = paintTimings.reduce((totalTime, timing) => {
+            if (timing.name === 'first-contentful-paint') {
+              totalTime += timing.startTime;
+          }
+          return totalTime;
+        }, 0);
+        return Math.round(renderTime);
+        }
+       ldclient.track("perf-contentful-paint", { metricValue: getRenderTime() });
+      });
+
+      ldclient.on('failed', () => {
+        div.appendChild(document.createTextNode('SDK failed to initialize'), div.firstChild);
+      });
+      ldclient.on('ready', render);
+      ldclient.on('change', render);
+
+
+      // Here we ensure that the SDK shuts down cleanly and has a chance
+      // to deliver analytics envets to LaunchDarkly before the program
+      // exits. If analytics events are not delivered, the context properties
+      // and flag usage statistics will not appear on your dashboard.
+      // In a normal long-running application, the SDK would continue
+      // running and events would be delivered automatically in the background.
+      ldclient.close();
+    }
+    main();
+    </script>
+    <div class="container">
+    <h1 id="header">Experimentation Station</h1>
+
+
+    <div id ="single">
+      <img src="https://picsum.photos/1280/720" alt="Image description">
+    </div>
+
+    <ol>
+      <li>List item</li>
+      <li>List item</li>
+      <li>List item</li>
+      <li>List item</li>
+      <li>List item</li>
+    </ol>
+    <div class="button" onclick=trackButtonClick()>Click Me</div>
+  </div>
+  </body>
+</html>
